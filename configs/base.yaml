@@ -1,0 +1,83 @@
+# ── Fundus2Myopia — base configuration ───────────────────────────────────────
+# All paths are relative to the project root unless they start with /
+
+data:
+  manifest_path: ""               # set per run; absolute path to manifest.csv
+  img_root: ""                    # root under which img_filename is resolved
+  img_col: "img_filename_demo"    # manifest column holding the image filename
+  target_cols: ["al", "asph", "acyl"]
+  aux_target_cols: ["od_area", "ppa_od_area_ratio"]
+  laterality_flip: true           # flip L images → right-eye space
+  require_all_targets: true
+  cache_images: false             # true only for demo / tiny datasets
+  num_workers: 4
+  pin_memory: true
+
+split:
+  train_frac: 0.70
+  val_frac:   0.15
+  test_frac:  0.15
+  stratify_col: "myopia_grade"
+  random_state: 42
+
+model:
+  backbone: "efficientnet_b3"     # efficientnet_b3 | resnet50 | resnet101 | retfound
+  pretrained: true
+  freeze_stages: 0                # freeze first N backbone stages (0 = none)
+  film_stages: [3, 4]             # backbone stage indices where FiLM is applied
+  neck_hidden: 512
+  head_hidden: 128
+  dropout_neck: 0.30
+  dropout_head: 0.10
+  task_names: ["al", "sph", "cyl"]
+  aux_task_names: ["od_area", "ppa_ratio"]
+
+loss:
+  weighting: "uncertainty"        # uncertainty | gradnorm | fixed
+  fixed_weights: [1.0, 1.0, 1.0] # used only when weighting=fixed
+  consistency_weight: 0.5         # λ for SE = SPH + CYL/2 constraint
+  aux_weight: 0.10                # weight for auxiliary task losses
+  base_loss: "smooth_l1"         # smooth_l1 | mse | mae
+
+training:
+  epochs: 60
+  batch_size: 16
+  lr: 1.0e-4
+  backbone_lr_scale: 0.1          # LR multiplier for backbone (vs heads/neck)
+  weight_decay: 1.0e-4
+  gradient_clip: 1.0
+  warmup_epochs: 5
+  scheduler: "cosine"             # cosine | step | none
+  step_size: 20                   # for step scheduler
+  step_gamma: 0.3
+  mixed_precision: false          # requires CUDA; enable for GPU training
+  compile: false                  # torch.compile (PyTorch 2.x)
+
+augmentation:
+  input_size: 300                 # override per backbone in backbone-specific configs
+  circular_crop: true             # mask corners (fundus images are circular)
+  random_rotation: 30             # degrees
+  random_flip_h: true             # horizontal flip (independent of laterality flip)
+  color_jitter:
+    brightness: 0.3
+    contrast: 0.3
+    saturation: 0.2
+    hue: 0.02
+  random_erasing: 0.1             # probability of random erasing patch
+  normalize:
+    mean: [0.485, 0.456, 0.406]   # ImageNet; override for fundus-specific norm
+    std:  [0.229, 0.224, 0.225]
+
+evaluation:
+  grade_thresholds: [-0.5, -3.0, -6.0]   # SE breakpoints for grade 0/1/2/3
+  bland_altman_confidence: 0.95
+  mc_dropout_samples: 0           # 0 = disabled; 50 for predictive uncertainty
+
+paths:
+  output_dir: "outputs"
+  checkpoint_dir: "outputs/checkpoints"
+  log_dir: "outputs/logs"
+  gradcam_dir: "outputs/gradcam"
+
+seed: 42
+device: "cpu"                     # cpu | cuda | mps

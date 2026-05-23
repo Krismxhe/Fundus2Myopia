@@ -1,0 +1,62 @@
+# ── Demo dataset overrides (inherits from base.yaml) ─────────────────────────
+# Usage:  python scripts/demo_test.py --config configs/demo.yaml
+
+_base_: base.yaml
+
+data:
+  manifest_path: "/Volumes/Lenovo/001_myopia/data/fundus2myopia/demo/manifest.csv"
+  img_root:      "/Volumes/Lenovo/001_myopia/data/fundus2myopia/demo/images"
+  img_col:       "img_filename_demo"
+  target_cols:   ["al", "asph", "acyl"]
+  aux_target_cols: []              # OD/PPA not complete in demo
+  cache_images:  true              # 100 images — safe to cache in RAM
+  num_workers:   0                 # simpler debugging with 0 workers
+
+split:
+  train_frac: 0.70                # 35 subjects
+  val_frac:   0.15                # 8 subjects
+  test_frac:  0.15                # 7 subjects
+
+model:
+  backbone: "efficientnet_b3"
+  pretrained: false               # skip ImageNet download for quick test
+  film_stages: [3, 4]
+  neck_hidden: 256
+  head_hidden: 64
+  dropout_neck: 0.2
+  aux_task_names: []
+
+loss:
+  weighting: "fixed"
+  fixed_weights: [1.0, 1.0, 1.0]
+  consistency_weight: 0.3
+  aux_weight: 0.0
+
+training:
+  epochs: 3                       # smoke-test only
+  batch_size: 8
+  lr: 1.0e-3
+  backbone_lr_scale: 0.1
+  warmup_epochs: 1
+  scheduler: "cosine"
+  mixed_precision: false
+
+augmentation:
+  input_size: 300
+  random_rotation: 20
+  random_flip_h: true
+  color_jitter:
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.1
+    hue: 0.01
+  random_erasing: 0.0
+
+paths:
+  output_dir: "outputs/demo"
+  checkpoint_dir: "outputs/demo/checkpoints"
+  log_dir: "outputs/demo/logs"
+  gradcam_dir: "outputs/demo/gradcam"
+
+seed: 42
+device: "cpu"
